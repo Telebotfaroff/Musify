@@ -80,15 +80,29 @@ android {
 
     signingConfigs {
         create("release") {
-            storeFile = file("keystore/release.keystore")
-            storePassword = System.getenv("STORE_PASSWORD")
-            keyAlias = System.getenv("KEY_ALIAS")
-            keyPassword = System.getenv("KEY_PASSWORD")
+            val keystorePath =
+                System.getenv("ANDROID_KEYSTORE_PATH")
+                    ?: localProperties.getProperty("ANDROID_KEYSTORE_PATH")
+                    ?: "keystore/release.keystore"
+            storeFile = file(keystorePath)
+            storePassword =
+                System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                    ?: localProperties.getProperty("ANDROID_KEYSTORE_PASSWORD")
+                    ?: System.getenv("STORE_PASSWORD")
+            keyAlias =
+                System.getenv("ANDROID_KEY_ALIAS")
+                    ?: localProperties.getProperty("ANDROID_KEY_ALIAS")
+                    ?: System.getenv("KEY_ALIAS")
+            keyPassword =
+                System.getenv("ANDROID_KEY_PASSWORD")
+                    ?: localProperties.getProperty("ANDROID_KEY_PASSWORD")
+                    ?: System.getenv("KEY_PASSWORD")
         }
     }
 
     buildTypes {
         release {
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
