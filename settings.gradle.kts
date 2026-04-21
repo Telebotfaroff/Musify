@@ -23,7 +23,7 @@ dependencyResolutionManagement {
 //     id("org.gradle.toolchains.foojay-resolver-convention") version("1.0.0")
 // }
 
-rootProject.name = "OpenTune"
+rootProject.name = "Musify"
 include(":app")
 include(":innertube")
 include(":kugou")
