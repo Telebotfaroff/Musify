@@ -1,4 +1,4 @@
-# OpenTune
+# Musify
 
 <div align="center">
   <img src="https://github.com/Arturo254/OpenTune/blob/master/fastlane/metadata/android/en-US/images/featureGraphic.png" alt="OpenTune Banner" width="100%"/>
@@ -32,7 +32,7 @@
 
 ## Overview
 
-**OpenTune** is an open-source YouTube Music client specifically designed for Android devices. It delivers a superior user experience with a modern interface implementing Material Design 3, offering advanced functionalities to explore, play, and manage musical content without the limitations of the official application.
+**Musify** is an open-source YouTube Music client specifically designed for Android devices. It delivers a superior user experience with a modern interface implementing Material Design 3, offering advanced functionalities to explore, play, and manage musical content without the limitations of the official application.
 
 ### Key Benefits
 
@@ -42,7 +42,7 @@
 - **Customizable Interface**: Personalize your music experience
 - **Offline Capabilities**: Download and play music without internet connection
 
-> **Note**: OpenTune is an independent project and is not affiliated, sponsored, or endorsed by YouTube or Google.
+> **Note**: Musify is an independent project and is not affiliated, sponsored, or endorsed by YouTube or Google.
 
 ---
 
@@ -190,7 +190,7 @@ For detailed information about configuration, advanced features, and usage guide
 
 <div align="center">
   
-[![F-Droid](https://img.shields.io/badge/F--Droid-1976D2?style=for-the-badge&logo=f-droid&logoColor=white)](https://f-droid.org/es/packages/com.Arturo254.opentune/)
+[![F-Droid](https://img.shields.io/badge/F--Droid-1976D2?style=for-the-badge&logo=f-droid&logoColor=white)](https://f-droid.org/es/packages/com.musifyimtiaz.app/)
 
 </div>
 
@@ -198,7 +198,7 @@ For detailed information about configuration, advanced features, and usage guide
 
 <div align="center">
   
-[![OpenApk](https://img.shields.io/badge/OpenApk-FF6B35?style=for-the-badge&logo=android&logoColor=white)](https://www.openapk.net/opentune/com.Arturo254.opentune/)
+[![OpenApk](https://img.shields.io/badge/OpenApk-FF6B35?style=for-the-badge&logo=android&logoColor=white)](https://www.openapk.net/opentune/com.musifyimtiaz.app/)
 
 </div>
 

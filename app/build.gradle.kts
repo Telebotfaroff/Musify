@@ -16,11 +16,11 @@ if (localPropertiesFile.exists()) {
 }
 
 android {
-    namespace = "com.arturo254.opentune"
+    namespace = "com.musifyimtiaz.app"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.Arturo254.opentune"
+        applicationId = "com.musifyimtiaz.app"
         minSdk = 26
         targetSdk = 36
         versionCode = 128
