@@ -78,26 +78,36 @@ It builds:
 - Signed APK via `:app:assembleUniversalRelease`
 - Signed AAB via `:app:bundleUniversalRelease`
 
+On `v*` tags, the workflow now also creates/updates the matching **GitHub Release** and uploads release assets:
+
+- `app-universal-release.apk`
+- `app-release.apk` (stable compatibility alias)
+- `app-universal-release.aab` (when built)
+
 Trigger options:
 
-### Manual run
-
-1. Open **Actions → Android Release**.
-2. Click **Run workflow**.
-
-### Tag push
+### Recommended: tag push (publishes to GitHub Releases)
 
 ```bash
-git tag vX.Y.Z
+git tag -a vX.Y.Z -m "vX.Y.Z"
 git push origin vX.Y.Z
 ```
 
-## 6) Download artifacts
+### Manual run (`workflow_dispatch`)
 
-After the workflow finishes, open the run summary and download:
+1. Open **Actions → Android Release**.
+2. Click **Run workflow**.
+3. Set `release_tag` to a tag like `vX.Y.Z` if you want GitHub Release assets uploaded.
+4. If `release_tag` is left empty (or does not match `v*`), the workflow logs a notice and skips release upload.
 
-- `release-apk-...`
-- `release-aab-...`
+## 6) Download build outputs
+
+After the workflow finishes:
+
+- **Workflow artifacts** are still available in the run summary:
+  - `release-apk-...`
+  - `release-aab-...`
+- **Published release assets** are available under **GitHub → Releases → vX.Y.Z** when the run is triggered by a `v*` tag (or manual run with `release_tag`).
 
 ## Troubleshooting
 
