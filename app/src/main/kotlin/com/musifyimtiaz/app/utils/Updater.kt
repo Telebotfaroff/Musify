@@ -43,7 +43,7 @@ data class ReleaseInfo(
  *
  * @param tagName        Tag del release en GitHub (ej. "v1.4.2")
  * @param versionName    Versión normalizada sin prefijo "v" (ej. "1.4.2")
- * @param downloadUrl    URL directa a `app-release.apk` del release
+ * @param downloadUrl    URL directa al APK del release
  * @param releasePageUrl URL de la página HTML del release en GitHub
  * @param releaseNotes   Changelog / body del release (puede ser null)
  * @param publishedAt    Fecha de publicación en ISO 8601
@@ -57,7 +57,12 @@ data class UpdateInfo(
     val publishedAt: String,
 )
 
-private const val APK_ASSET_NAME = "app-release.apk"
+private const val LEGACY_APK_ASSET_NAME = "app-release.apk"
+private const val UNIVERSAL_APK_ASSET_NAME = "app-universal-release.apk"
+private const val GITHUB_OWNER = "Telebotfaroff"
+private const val GITHUB_REPO = "Musify"
+private const val GITHUB_API_BASE_URL = "https://api.github.com/repos/$GITHUB_OWNER/$GITHUB_REPO"
+private const val GITHUB_RELEASES_BASE_URL = "https://github.com/$GITHUB_OWNER/$GITHUB_REPO/releases"
 
 private data class ReleasesNetworkResult(
     val status: HttpStatusCode,
@@ -193,6 +198,45 @@ object Updater {
     private fun preferredReleaseVersionNameOrNull(release: ReleaseInfo): String? =
         parseReleaseSemVerOrNull(release)?.normalizedName()
 
+    private fun preferredApkAssetNames(): List<String> {
+        val architecture = BuildConfig.ARCHITECTURE.trim().lowercase()
+        return buildList {
+            if (architecture.isNotEmpty()) {
+                add("app-$architecture-release.apk")
+            }
+            add(UNIVERSAL_APK_ASSET_NAME)
+            add(LEGACY_APK_ASSET_NAME)
+        }.distinct()
+    }
+
+    private fun preferredLatestDownloadUrl(): String {
+        val assetName = preferredApkAssetNames().firstOrNull() ?: UNIVERSAL_APK_ASSET_NAME
+        return "$GITHUB_RELEASES_BASE_URL/latest/download/$assetName"
+    }
+
+    private fun resolveApkFromAssets(assets: JSONArray): String? {
+        val assetUrlByName = mutableMapOf<String, String>()
+        var firstApkUrl: String? = null
+
+        for (i in 0 until assets.length()) {
+            val asset = assets.getJSONObject(i)
+            val assetName = asset.optString("name", "").trim()
+            val assetUrl = asset.optString("browser_download_url", "").trim()
+            if (assetName.isBlank() || assetUrl.isBlank()) continue
+
+            assetUrlByName[assetName.lowercase()] = assetUrl
+            if (firstApkUrl == null && assetName.endsWith(".apk", ignoreCase = true)) {
+                firstApkUrl = assetUrl
+            }
+        }
+
+        preferredApkAssetNames().forEach { preferredName ->
+            assetUrlByName[preferredName.lowercase()]?.let { return it }
+        }
+
+        return firstApkUrl
+    }
+
     private fun parseReleasesJson(json: String): List<ReleaseInfo> {
         val jsonArray = JSONArray(json)
         val releases = ArrayList<ReleaseInfo>(jsonArray.length())
@@ -227,7 +271,7 @@ object Updater {
         cachedEtag: String?,
     ): ReleasesNetworkResult {
         val response: HttpResponse =
-            client.get("https://api.github.com/repos/Arturo254/OpenTune/releases?per_page=$perPage") {
+            client.get("$GITHUB_API_BASE_URL/releases?per_page=$perPage") {
                 headers {
                     append("Accept", "application/vnd.github+json")
                     append("User-Agent", "Musify")
@@ -284,8 +328,8 @@ object Updater {
      * Comprueba si hay una versión más reciente que [currentVersionName].
      *
      * - Reutiliza la caché existente (ETag / DataStore) a través de [getLatestReleaseInfo].
-     * - Busca el asset `app-release.apk` en la API de assets del release. Si no
-     *   aparece listado, construye la URL canónica de descarga como fallback.
+     * - Busca un asset APK compatible en la API de assets del release.
+     *   Si no aparece listado, usa una URL de descarga canónica como fallback.
      * - Devuelve `null` dentro del [Result] cuando ya se tiene la versión más
      *   reciente instalada.
      */
@@ -300,7 +344,7 @@ object Updater {
             // Sin actualización disponible
             if (isSameVersion(latestVersionName, currentVersionName)) return@runCatching null
 
-            // Intentar obtener la URL exacta del asset app-release.apk desde la API
+            // Intentar obtener la URL exacta del asset APK desde la API
             val downloadUrl = resolveApkDownloadUrl(latest.tagName)
 
             UpdateInfo(
@@ -315,16 +359,15 @@ object Updater {
 
     /**
      * Consulta los assets del release [tagName] y devuelve la URL de descarga
-     * de `app-release.apk`. Si la llamada falla o el asset no está listado,
+     * de un APK compatible. Si la llamada falla o no hay assets APK listados,
      * usa la URL canónica de GitHub como fallback.
      */
     private suspend fun resolveApkDownloadUrl(tagName: String): String {
-        val fallback =
-            "https://github.com/Arturo254/OpenTune/releases/download/$tagName/$APK_ASSET_NAME"
+        val fallback = "$GITHUB_RELEASES_BASE_URL/download/$tagName/${preferredApkAssetNames().firstOrNull() ?: UNIVERSAL_APK_ASSET_NAME}"
 
         return runCatching {
             val response = client.get(
-                "https://api.github.com/repos/Arturo254/OpenTune/releases/tags/$tagName"
+                "$GITHUB_API_BASE_URL/releases/tags/$tagName"
             ) {
                 headers {
                     append("Accept", "application/vnd.github+json")
@@ -333,24 +376,17 @@ object Updater {
             }.bodyAsText()
 
             val assets = JSONObject(response).optJSONArray("assets") ?: return@runCatching fallback
-
-            for (i in 0 until assets.length()) {
-                val asset = assets.getJSONObject(i)
-                if (asset.optString("name").equals(APK_ASSET_NAME, ignoreCase = true)) {
-                    return@runCatching asset.optString("browser_download_url", fallback)
-                }
-            }
-            // Asset no encontrado en el release → URL canónica
-            fallback
+            resolveApkFromAssets(assets) ?: fallback
         }.getOrDefault(fallback)
     }
 
     // ─────────────────────────────────────────────────────────────────────────
 
-    suspend fun getCommitHistory(count: Int = 20, branch: String = "master"): Result<List<GitCommit>> =
+    suspend fun getCommitHistory(count: Int = 20, branch: String = "main"): Result<List<GitCommit>> =
         runCatching {
+            val branchQuery = branch.takeIf { it.isNotBlank() }?.let { "&sha=$it" }.orEmpty()
             val response =
-                client.get("https://api.github.com/repos/Arturo254/OpenTune/commits?sha=$branch&per_page=$count") {
+                client.get("$GITHUB_API_BASE_URL/commits?per_page=$count$branchQuery") {
                     headers {
                         append("Accept", "application/vnd.github+json")
                         append("User-Agent", "Musify")
@@ -375,11 +411,7 @@ object Updater {
             commits
         }
 
-    fun getLatestDownloadUrl(): String {
-        val baseUrl = "https://github.com/Arturo254/OpenTune/releases/latest/download/"
-        val architecture = BuildConfig.ARCHITECTURE
-        return baseUrl + "app-release.apk"
-    }
+    fun getLatestDownloadUrl(): String = preferredLatestDownloadUrl()
 
     suspend fun getAllReleases(
         perPage: Int = 30,
