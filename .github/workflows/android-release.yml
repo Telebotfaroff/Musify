@@ -6,6 +6,11 @@ concurrency:
 
 on:
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Tag to publish in GitHub Releases (for example: v3.0.1). Leave empty to skip release upload."
+        required: false
+        type: string
   push:
     tags:
       - "v*"
@@ -17,7 +22,7 @@ jobs:
   build-release:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
 
     steps:
       - name: Checkout
@@ -81,6 +86,78 @@ jobs:
       - name: Build signed release APK and AAB
         run: ./gradlew :app:assembleUniversalRelease :app:bundleUniversalRelease --build-cache --configuration-cache --parallel
 
+      - name: Resolve release publishing context
+        id: release_context
+        env:
+          MANUAL_RELEASE_TAG: ${{ github.event.inputs.release_tag }}
+        run: |
+          should_publish=false
+          release_tag=""
+
+          if [ "${GITHUB_REF_TYPE}" = "tag" ] && [[ "${GITHUB_REF_NAME}" == v* ]]; then
+            should_publish=true
+            release_tag="${GITHUB_REF_NAME}"
+            echo "Detected tag push ${release_tag}; release upload enabled."
+          elif [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+            if [ -n "${MANUAL_RELEASE_TAG}" ]; then
+              if [[ "${MANUAL_RELEASE_TAG}" == v* ]]; then
+                should_publish=true
+                release_tag="${MANUAL_RELEASE_TAG}"
+                echo "Manual release tag ${release_tag} provided; release upload enabled."
+              else
+                echo "::warning::workflow_dispatch input release_tag='${MANUAL_RELEASE_TAG}' does not match 'v*'. Release upload will be skipped."
+              fi
+            else
+              echo "::notice::No release_tag provided for workflow_dispatch. Build artifacts will still be uploaded; GitHub Release upload will be skipped."
+            fi
+          else
+            echo "::notice::This ref is not a v* tag. GitHub Release upload will be skipped."
+          fi
+
+          echo "should_publish=${should_publish}" >> "$GITHUB_OUTPUT"
+          echo "release_tag=${release_tag}" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare stable release assets
+        id: release_assets
+        run: |
+          set -euo pipefail
+
+          apk_dir="app/build/outputs/apk/universal/release"
+          aab_dir="app/build/outputs/bundle/universalRelease"
+
+          mapfile -t apk_candidates < <(find "$apk_dir" -maxdepth 1 -type f -name "*.apk" | sort)
+          if [ "${#apk_candidates[@]}" -eq 0 ]; then
+            echo "::error::No APK files found in $apk_dir"
+            exit 1
+          fi
+
+          apk_source="${apk_candidates[0]}"
+          mkdir -p release-assets
+          cp "$apk_source" release-assets/app-universal-release.apk
+          cp "$apk_source" release-assets/app-release.apk
+
+          release_files=(
+            "release-assets/app-universal-release.apk"
+            "release-assets/app-release.apk"
+          )
+
+          mapfile -t aab_candidates < <(find "$aab_dir" -maxdepth 1 -type f -name "*.aab" | sort)
+          if [ "${#aab_candidates[@]}" -gt 0 ]; then
+            cp "${aab_candidates[0]}" release-assets/app-universal-release.aab
+            release_files+=("release-assets/app-universal-release.aab")
+            echo "Resolved AAB source: ${aab_candidates[0]}"
+          else
+            echo "::notice::No AAB found in $aab_dir. Only APK assets will be uploaded to the release."
+          fi
+
+          echo "Resolved APK source: $apk_source"
+
+          {
+            echo "release_files<<EOF"
+            printf '%s\n' "${release_files[@]}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Upload release APK
         uses: actions/upload-artifact@v6
         with:
@@ -96,3 +173,20 @@ jobs:
           path: app/build/outputs/bundle/universalRelease/*.aab
           if-no-files-found: error
           retention-days: 14
+
+      - name: Create or update GitHub Release and upload assets
+        if: steps.release_context.outputs.should_publish == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release_context.outputs.release_tag }}
+          generate_release_notes: true
+          overwrite_files: true
+          fail_on_unmatched_files: true
+          files: ${{ steps.release_assets.outputs.release_files }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Release upload skipped
+        if: steps.release_context.outputs.should_publish != 'true'
+        run: |
+          echo "::notice::GitHub Release upload skipped. To publish release assets from workflow_dispatch, rerun with input release_tag=vX.Y.Z."
