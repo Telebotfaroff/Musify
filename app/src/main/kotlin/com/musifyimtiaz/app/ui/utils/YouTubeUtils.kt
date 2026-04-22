@@ -18,8 +18,8 @@ fun String.resize(
         val (W, H) = group.drop(1).map { it.toInt() }
         var w = width
         var h = height
-        if (w != null && h == null) h = (w / W) * H
-        if (w == null && h != null) w = (h / H) * W
+        if (w != null && h == null) h = w * H / W
+        if (w == null && h != null) w = h * W / H
         return "${split("=w")[0]}=w$w-h$h-p-l90-rj"
     }
     if (this matches "https://yt3\\.ggpht\\.com/.*=s(\\d+)".toRegex()) {
