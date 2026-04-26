@@ -537,7 +537,12 @@ class MainActivity : ComponentActivity() {
 
                     // fetch release notes and show sheet when a new version is detected
                     LaunchedEffect(latestVersionName) {
-                        if (!Updater.isSameVersion(latestVersionName, BuildConfig.VERSION_NAME)) {
+                        if (
+                            Updater.isUpdateAvailable(
+                                currentVersionName = BuildConfig.VERSION_NAME,
+                                latestVersionName = latestVersionName,
+                            )
+                        ) {
                             Updater.getLatestReleaseNotes().onSuccess {
                                 releaseNotesState.value = it
                             }.onFailure {
@@ -1230,7 +1235,10 @@ class MainActivity : ComponentActivity() {
                                                     }
                                                     IconButton(onClick = { showAccountDialog = true }) {
                                                         BadgedBox(badge = {
-                                                            if (!Updater.isSameVersion(latestVersionName, BuildConfig.VERSION_NAME)) {
+                                                            if (Updater.isUpdateAvailable(
+                                                                currentVersionName = BuildConfig.VERSION_NAME,
+                                                                latestVersionName = latestVersionName,
+                                                            )) {
                                                                 Badge()
                                                             }
                                                         }) {

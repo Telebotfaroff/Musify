@@ -63,4 +63,31 @@ class UpdaterSemVerTest {
         assertTrue(Updater.isSameVersion("Musify 13.0.0", "13.0.0"))
         assertFalse(Updater.isSameVersion("13.0.1", "13.0.0"))
     }
+
+    @Test
+    fun isUpdateAvailable_onlyReturnsTrueWhenLatestIsNewer() {
+        assertTrue(
+            Updater.isUpdateAvailable(
+                currentVersionName = "3.0.0",
+                latestVersionName = "v3.0.1",
+            )
+        )
+        assertFalse(
+            Updater.isUpdateAvailable(
+                currentVersionName = "3.0.1",
+                latestVersionName = "3.0.1",
+            )
+        )
+        assertFalse(
+            Updater.isUpdateAvailable(
+                currentVersionName = "3.1.0",
+                latestVersionName = "3.0.9",
+            )
+        )
+    }
+
+    @Test
+    fun latestDownloadUrl_usesStableAssetName() {
+        assertTrue(Updater.getLatestDownloadUrl().endsWith("/latest/download/app-release.apk"))
+    }
 }

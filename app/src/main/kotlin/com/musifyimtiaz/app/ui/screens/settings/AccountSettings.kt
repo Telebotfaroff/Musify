@@ -142,7 +142,10 @@ fun AccountSettings(
     var showTokenEditor by remember { mutableStateOf(false) }
     var showPlaylistDialog by remember { mutableStateOf(false) }
 
-    val hasUpdate = !Updater.isSameVersion(latestVersionName, BuildConfig.VERSION_NAME)
+    val hasUpdate = Updater.isUpdateAvailable(
+        currentVersionName = BuildConfig.VERSION_NAME,
+        latestVersionName = latestVersionName,
+    )
 
     Column(
         modifier = Modifier

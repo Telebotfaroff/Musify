@@ -288,7 +288,12 @@ fun UpdateScreen(
                                     fontWeight = FontWeight.Bold
                                 )
                                 latestVersion?.let { latest ->
-                                    if (!Updater.isSameVersion(latest, BuildConfig.VERSION_NAME)) {
+                                    if (
+                                        Updater.isUpdateAvailable(
+                                            currentVersionName = BuildConfig.VERSION_NAME,
+                                            latestVersionName = latest,
+                                        )
+                                    ) {
                                         Spacer(Modifier.height(2.dp))
                                         Text(
                                             text = stringResource(R.string.latest_version_format, latest),

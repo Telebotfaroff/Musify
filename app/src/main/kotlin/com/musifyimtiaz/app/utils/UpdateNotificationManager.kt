@@ -113,7 +113,12 @@ object UpdateNotificationManager {
                 dataStore.edit { it[LastUpdateCheckKey] = now }
 
                 Updater.getLatestVersionName().onSuccess { latestVersion ->
-                    if (!Updater.isSameVersion(latestVersion, BuildConfig.VERSION_NAME)) {
+                    if (
+                        Updater.isUpdateAvailable(
+                            currentVersionName = BuildConfig.VERSION_NAME,
+                            latestVersionName = latestVersion,
+                        )
+                    ) {
                         notifyIfNewVersion(context, latestVersion)
                     }
                 }
@@ -128,7 +133,13 @@ object UpdateNotificationManager {
             val dataStore = context.dataStore
             val lastNotified = dataStore.data.map { it[LastNotifiedVersionKey] ?: "" }.first()
 
-            if (latestVersion != lastNotified && !Updater.isSameVersion(latestVersion, BuildConfig.VERSION_NAME)) {
+            if (
+                latestVersion != lastNotified &&
+                Updater.isUpdateAvailable(
+                    currentVersionName = BuildConfig.VERSION_NAME,
+                    latestVersionName = latestVersion,
+                )
+            ) {
                 showUpdateNotification(context, latestVersion)
                 dataStore.edit { it[LastNotifiedVersionKey] = latestVersion }
             }
