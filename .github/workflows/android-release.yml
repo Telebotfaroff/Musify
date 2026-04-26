@@ -78,19 +78,11 @@ jobs:
         run: |
           set -euo pipefail
 
-          version_name="$(python - <<'PY'
-import pathlib
-import re
-import sys
-
-content = pathlib.Path('app/build.gradle.kts').read_text(encoding='utf-8')
-match = re.search(r'^\s*versionName\s*=\s*"([^"]+)"', content, re.MULTILINE)
-if not match:
-    print('Unable to locate versionName in app/build.gradle.kts', file=sys.stderr)
-    sys.exit(1)
-print(match.group(1))
-PY
-          )"
+          version_name="$(sed -nE 's/^[[:space:]]*versionName[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/p' app/build.gradle.kts | head -n 1)"
+          if [ -z "${version_name}" ]; then
+            echo "::error::Unable to locate versionName in app/build.gradle.kts"
+            exit 1
+          fi
 
           release_tag="v${version_name}"
           echo "version_name=${version_name}" >> "$GITHUB_OUTPUT"
