@@ -57,7 +57,7 @@ data class UpdateInfo(
     val publishedAt: String,
 )
 
-private const val LEGACY_APK_ASSET_NAME = "app-release.apk"
+private const val STABLE_APK_ASSET_NAME = "app-release.apk"
 private const val UNIVERSAL_APK_ASSET_NAME = "app-universal-release.apk"
 private const val GITHUB_OWNER = "Telebotfaroff"
 private const val GITHUB_REPO = "Musify"
@@ -168,16 +168,32 @@ object Updater {
     private fun parseReleaseSemVerOrNull(release: ReleaseInfo): SemVer? =
         parseSemVerOrNull(release.tagName) ?: parseSemVerOrNull(release.name)
 
+    private fun compareSemVerOrNull(a: String, b: String): Int? {
+        val aSemVer = parseSemVerOrNull(a) ?: return null
+        val bSemVer = parseSemVerOrNull(b) ?: return null
+        return aSemVer.compareTo(bSemVer)
+    }
+
     internal fun isSameVersion(a: String, b: String): Boolean {
-        val aSemVer = parseSemVerOrNull(a)
-        val bSemVer = parseSemVerOrNull(b)
-        return if (aSemVer != null && bSemVer != null) {
-            aSemVer.major == bSemVer.major &&
-                    aSemVer.minor == bSemVer.minor &&
-                    aSemVer.patch == bSemVer.patch &&
-                    aSemVer.preRelease == bSemVer.preRelease
+        val semVerComparison = compareSemVerOrNull(a, b)
+        return if (semVerComparison != null) {
+            semVerComparison == 0
         } else {
-            a.trim() == b.trim()
+            a.trim().equals(b.trim(), ignoreCase = true)
+        }
+    }
+
+    internal fun isUpdateAvailable(currentVersionName: String, latestVersionName: String): Boolean {
+        val normalizedCurrent = currentVersionName.trim()
+        val normalizedLatest = latestVersionName.trim()
+
+        if (normalizedLatest.isBlank()) return false
+
+        val semVerComparison = compareSemVerOrNull(normalizedLatest, normalizedCurrent)
+        return if (semVerComparison != null) {
+            semVerComparison > 0
+        } else {
+            !normalizedLatest.equals(normalizedCurrent, ignoreCase = true)
         }
     }
 
@@ -201,11 +217,11 @@ object Updater {
     private fun preferredApkAssetNames(): List<String> {
         val architecture = BuildConfig.ARCHITECTURE.trim().lowercase()
         return buildList {
-            if (architecture.isNotEmpty()) {
+            add(STABLE_APK_ASSET_NAME)
+            add(UNIVERSAL_APK_ASSET_NAME)
+            if (architecture.isNotEmpty() && architecture != "universal") {
                 add("app-$architecture-release.apk")
             }
-            add(UNIVERSAL_APK_ASSET_NAME)
-            add(LEGACY_APK_ASSET_NAME)
         }.distinct()
     }
 
@@ -342,7 +358,9 @@ object Updater {
                     ?: latest.name.ifBlank { latest.tagName }
 
             // Sin actualización disponible
-            if (isSameVersion(latestVersionName, currentVersionName)) return@runCatching null
+            if (!isUpdateAvailable(currentVersionName = currentVersionName, latestVersionName = latestVersionName)) {
+                return@runCatching null
+            }
 
             // Intentar obtener la URL exacta del asset APK desde la API
             val downloadUrl = resolveApkDownloadUrl(latest.tagName)

@@ -39,7 +39,12 @@ class UpdateCheckWorker(
             if (updateChannel == UpdateChannel.NIGHTLY) return Result.success()
 
             Updater.getLatestVersionName().onSuccess { latestVersion ->
-                if (!Updater.isSameVersion(latestVersion, BuildConfig.VERSION_NAME)) {
+                if (
+                    Updater.isUpdateAvailable(
+                        currentVersionName = BuildConfig.VERSION_NAME,
+                        latestVersionName = latestVersion,
+                    )
+                ) {
                     UpdateNotificationManager.notifyIfNewVersion(applicationContext, latestVersion)
                 }
             }
